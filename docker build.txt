@@ -1,0 +1,9 @@
+comando exemplo para criação do container com os argumentos necessários
+
+docker build --build-arg STATS_DIR=stats --build-arg REPO=https://github.com/n1ghtr1der/for-pets-frontend.git --build-arg REPO_NAME=for-pets-frontend . -t teste/gitstats
+docker build --build-arg <ARG>:<VALUE> . -t <autor>/<image-name>
+
+
+
+
+docker build --build-arg STATS_DIR=stats --build-arg REPO=https://github.com/n1ghtr1der/booking-app-go.git --build-arg REPO_NAME=booking-app-go . -t teste/gitstats:2
