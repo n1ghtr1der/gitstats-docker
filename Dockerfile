@@ -24,7 +24,7 @@ RUN mkdir stats
 
 RUN ./gitstats/gitstats /app/${REPO_NAME} /app/stats
 
-FROM ubuntu
+FROM alpine
 
 WORKDIR /stats
 COPY --from=statsGen /app/stats .
