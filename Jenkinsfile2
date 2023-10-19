@@ -1,0 +1,107 @@
+// def buildImage() {
+//     sh '''docker build  --build-arg REPO=${REPOSITORY_FRONTEND} --build-arg REPO_NAME=${REPOSITORY_NAME} \
+//      --build-arg SSH_PRV_KEY="$(cat ${SSH_CREDENTIALS})" . -t gitstats-image:${REPOSITORY_NAME}
+//     '''
+// }
+
+//jenkinsfile with multi repositories statistics generated
+
+pipeline {
+    agent any
+
+    environment {
+        SSH_CREDENTIALS = credentials('devops-key')
+        DOCKERFILE = credentials('gitstats-dockerfile')
+        BUCKET_NAME = 'gitstats-homero'
+        
+        REPOSITORY_FRONTEND = 'git@ssh.dev.azure.com:v3/lds-ifce/PU%20-%20Plataforma%20EAD%20Adaptativa/front-end'
+        REPOSITORY_NAME_FRONTEND = 'front-end'
+        
+        REPOSITORY_BACKEND = 'git@ssh.dev.azure.com:v3/lds-ifce/PU%20-%20Plataforma%20EAD%20Adaptativa/back-end'
+        REPOSITORY_NAME_BACKEND = 'back-end'
+
+        REPOSITORY_GRAPHS = 'git@ssh.dev.azure.com:v3/lds-ifce/PU%20-%20Plataforma%20EAD%20Adaptativa/graphs'
+        REPOSITORY_NAME_GRAPHS = 'graphs'
+
+        REPOSITORY_CHATBOT = 'git@ssh.dev.azure.com:v3/lds-ifce/PU%20-%20Plataforma%20EAD%20Adaptativa/chatbot'
+        REPOSITORY_NAME_CHATBOT = 'chatbot'
+
+        REPOSITORY_STTGOLANG = 'git@ssh.dev.azure.com:v3/lds-ifce/PU%20-%20Plataforma%20EAD%20Adaptativa/stt-golang'
+        REPOSITORY_NAME_STTGOLANG = 'stt-golang'
+    }
+
+    stages {
+        stage('Creating Dockerfile') {
+            steps {
+                sh 'cat ${DOCKERFILE} > ./Dockerfile'
+            }
+        }
+        stage('Homero') {
+            parallel {
+                stage('front-end') {
+                    stages {
+                        stage('Building ${REPOSITORY_NAME_FRONTEND} image') {
+                            steps {
+                                sh '''docker build  --build-arg REPO=${REPOSITORY_FRONTEND} --build-arg REPO_NAME=${REPOSITORY_NAME_FRONTEND} \
+                                --build-arg SSH_PRV_KEY="$(cat ${SSH_CREDENTIALS})" . -t gitstats-image:${REPOSITORY_NAME_FRONTEND}
+                                '''
+                            }
+                        }
+                        stage('Copying stats from container') {
+                            steps {
+                                sh 'docker run --name ${REPOSITORY_NAME_FRONTEND} -d gitstats-image:${REPOSITORY_NAME_FRONTEND} tail -f /dev/null'
+                                sh 'mkdir ${REPOSITORY_NAME_FRONTEND} && docker cp ${REPOSITORY_NAME_FRONTEND}:/stats ./${REPOSITORY_NAME_FRONTEND}'
+                            }
+                        }
+                        stage('S3 cleanup and upload stats') {
+                            steps {
+                                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr']]) {
+                                    sh 'aws s3 rm s3://${BUCKET_NAME}/${REPOSITORY_NAME_FRONTEND}/* --recursive'
+                                    sh 'aws s3 cp ./${REPOSITORY_NAME_FRONTEND} s3://${BUCKET_NAME}/${REPOSITORY_NAME_FRONTEND} --recursive'
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('back-end') {
+                    stages {
+                        stage('Building ${REPOSITORY_NAME_BACKEND} image') {
+                            steps {
+                                sh '''docker build  --build-arg REPO=${REPOSITORY_BACKEND} --build-arg REPO_NAME=${REPOSITORY_NAME_BACKEND} \
+                                --build-arg SSH_PRV_KEY="$(cat ${SSH_CREDENTIALS})" . -t gitstats-image:${REPOSITORY_NAME_BACKEND}
+                                '''
+                            }
+                        }
+                        stage('Copying stats from container') {
+                            steps {
+                                sh 'docker run --name ${REPOSITORY_NAME_BACKEND} -d gitstats-image:${REPOSITORY_NAME_BACKEND} tail -f /dev/null'
+                                sh 'mkdir ${REPOSITORY_NAME_BACKEND} && docker cp ${REPOSITORY_NAME_BACKEND}:/stats ./${REPOSITORY_NAME_BACKEND}'
+
+                            }
+                        }
+                        stage('S3 cleanup and upload stats') {
+                            steps {
+                                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr']]) {
+                                    sh 'aws s3 rm s3://${BUCKET_NAME}/${REPOSITORY_NAME_BACKEND}/* --recursive'
+                                    sh 'aws s3 cp ./${REPOSITORY_NAME_BACKEND} s3://${BUCKET_NAME}/${REPOSITORY_NAME_BACKEND} --recursive'
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    post {
+        cleanup {
+            sh '''
+                docker container prune -f
+                docker rm $(docker ps -aq) -f
+                docker rmi $(docker images -aq) -f
+                docker images
+            '''
+            dir("${WORKSPACE}@tmp") { deleteDir() }
+            deleteDir()
+        }
+    }
+}
