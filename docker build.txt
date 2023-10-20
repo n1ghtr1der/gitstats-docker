@@ -7,4 +7,4 @@ docker build  --build-arg REPO=git@github.com:n1ghtr1der/booking-app-go.git --bu
 
 docker run  --name <container name> -d <image name> tail -f /dev/null
 
-docker build  --build-arg REPO=git@github.com:n1ghtr1der/memoteca-alura.git --build-arg REPO_NAME=memoteca-alura --build-arg SSH_PRV_KEY="$(cat ~/.ssh/github)" . -t teste/gitstats-image
+docker build  --build-arg REPO=git@github.com:n1ghtr1der/tf-alura.git --build-arg REPO_NAME=tf-alura --build-arg SSH_PRV_KEY="$(cat ~/.ssh/github)" . -t gitstats-image:alura

@@ -3,6 +3,7 @@ FROM ubuntu:22.04 as statsGen
 ARG REPO
 ARG REPO_NAME
 ARG SSH_PRV_KEY
+ARG BRANCH
 
 WORKDIR /app
 
@@ -16,7 +17,9 @@ RUN echo "${SSH_PRV_KEY}" > /root/.ssh/id_rsa && \
     chmod 600 /root/.ssh/id_rsa && \
     ssh-keyscan ssh.dev.azure.com >> /root/.ssh/known_hosts
 
-RUN git clone ${REPO}
+RUN git clone ${REPO} && \
+    cd ${REPO_NAME} && \
+    git checkout origin/${BRANCH} && cd ..
     
 RUN rm /root/.ssh/id_rsa*
 
