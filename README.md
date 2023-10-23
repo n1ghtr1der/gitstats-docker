@@ -23,7 +23,7 @@ docker run --name=gitstats-container -d gitstats tail -f /dev/null
 Copying stats from container to host:
 
 ```bash
-docker cp gistats-container:/stats .
+docker cp gitstats-container:/stats .
 ```
 
 After copying the files from container, you should kill it.
