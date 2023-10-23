@@ -76,4 +76,16 @@ pipeline {
             }
         }
     }
+    post {
+        cleanup {
+            sh '''
+                docker container prune -f
+                docker rm $(docker ps -aq) -f
+                docker rmi $(docker images -aq) -f
+                docker images
+            '''
+            dir("${WORKSPACE}@tmp") { deleteDir() }
+            deleteDir()
+        }
+    }
 }
