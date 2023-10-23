@@ -2,7 +2,7 @@
 
 The Dockerfile inside this repository generates a folder with statistics of the repository and branch inputed by the user. It works only with github or azure repositories.
 
-This project uses the Gitstats repository to generate the statistics: https://github.com/hoxu/gitstats/tree/master.
+This project uses the Gitstats repository to generate the statistics: https://github.com/hoxu/gitstats.
 
 ## Usage instructions
 
@@ -14,7 +14,7 @@ docker build --build-arg REPO=git@github.com:n1ghtr1der/gitstats-docker.git --bu
 
 After build you need to run the container to copy the statistics to your computer:
 
-Running container:
+Running the container:
 
 ```bash
 docker run --name=gitstats-container -d gitstats tail -f /dev/null
@@ -25,3 +25,5 @@ Copying stats from container to host:
 ```bash
 docker cp gistats-container:/stats .
 ```
+
+After copying the files from container, you should kill it.
