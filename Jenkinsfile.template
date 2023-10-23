@@ -14,7 +14,7 @@ pipeline {
     stages {
         stages('Creating Dockerfile') {
             steps {
-                sh 'cat ${DOCKERFILE} > Dockerfile'
+                sh 'cat ${DOCKERFILE} > ./Dockerfile'
             }
         }
         stage('Project') {
