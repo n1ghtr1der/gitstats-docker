@@ -1,0 +1,79 @@
+pipeline {
+    agent any
+
+    environment {
+        SSH_CREDENTIALS =
+        DOCKERFILE = 
+        BUCKET_NAME = 
+
+        REPOSITORY_PREFIX = 
+        REPOSITORY_NAME_FRONTEND = 
+        REPOSITORY_NAME_BACKEND = 
+    }
+
+    stages {
+        stages('Creating Dockerfile') {
+            steps {
+                sh 'cat ${DOCKERFILE} > Dockerfile'
+            }
+        }
+        stage('Project') {
+            parallel {
+                stage('front-end') {
+                    stages {
+                        stage('Building data-set-api image') {
+                            steps {
+                                sh '''docker build  --build-arg REPO=${REPOSITORY_PREFIX}/${REPOSITORY_NAME_FRONTEND} \
+                                --build-arg REPO_NAME=${REPOSITORY_NAME_FRONTEND} --build-arg SSH_PRV_KEY="$(cat ${SSH_CREDENTIALS})" \
+                                --build-arg BRANCH=main . -t gitstats-image:${REPOSITORY_NAME_FRONTEND}
+                                '''
+                            }
+                        }
+                        stage('Copying stats from container') {
+                            steps {
+                                sh '''docker run --name ${REPOSITORY_NAME_FRONTEND} -d gitstats-image:${REPOSITORY_NAME_FRONTEND} tail -f /dev/null && \
+                                mkdir -p ${REPOSITORY_NAME_FRONTEND} && docker cp ${REPOSITORY_NAME_FRONTEND}:/stats ./${REPOSITORY_NAME_FRONTEND}
+                                '''
+                            }
+                        }
+                        stage('S3 cleanup and upload stats') {
+                            steps {
+                                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+                                    sh 'aws s3 rm s3://${BUCKET_NAME}/${REPOSITORY_NAME_FRONTEND}/* --recursive'
+                                    sh 'aws s3 cp ./${REPOSITORY_NAME_FRONTEND} s3://${BUCKET_NAME}/${REPOSITORY_NAME_FRONTEND} --recursive'
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('back-end') {
+                    stages {
+                        stage('Building data-set-api image') {
+                            steps {
+                                sh '''docker build  --build-arg REPO=${REPOSITORY_PREFIX}/${REPOSITORY_NAME_BACKEND} \
+                                --build-arg REPO_NAME=${REPOSITORY_NAME_BACKEND} --build-arg SSH_PRV_KEY="$(cat ${SSH_CREDENTIALS})" \
+                                --build-arg BRANCH=main . -t gitstats-image:${REPOSITORY_NAME_BACKEND}
+                                '''
+                            }
+                        }
+                        stage('Copying stats from container') {
+                            steps {
+                                sh '''docker run --name ${REPOSITORY_NAME_BACKEND} -d gitstats-image:${REPOSITORY_NAME_BACKEND} tail -f /dev/null && \
+                                mkdir -p ${REPOSITORY_NAME_BACKEND} && docker cp ${REPOSITORY_NAME_BACKEND}:/stats ./${REPOSITORY_NAME_BACKEND}
+                                '''
+                            }
+                        }
+                        stage('S3 cleanup and upload stats') {
+                            steps {
+                                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+                                    sh 'aws s3 rm s3://${BUCKET_NAME}/${REPOSITORY_NAME_BACKEND}/* --recursive'
+                                    sh 'aws s3 cp ./${REPOSITORY_NAME_BACKEND} s3://${BUCKET_NAME}/${REPOSITORY_NAME_BACKEND} --recursive'
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
